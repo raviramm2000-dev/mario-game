@@ -4,49 +4,71 @@ import type { GameState, HudData, LevelCompleteData, VictoryData, SaveData, Game
 import { SaveSystem } from '@/game/saveSystem';
 import { ACHIEVEMENTS } from '@/game/types';
 import { WORLD_THEMES, TOTAL_LEVELS } from '@/game/level';
-import { Play, Settings, Trophy, Award, ChevronRight, ChevronLeft, Heart, Star, Volume2, Gamepad2, Home, RotateCcw, ArrowRight } from 'lucide-react';
+import { Play, Settings, Trophy, Award, ChevronRight, Volume2, Gamepad2, Home, RotateCcw, ArrowRight, Maximize, Minimize } from 'lucide-react';
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function isLandscape() {
+  if (typeof window === 'undefined') return true;
+  return window.innerWidth > window.innerHeight;
+}
+
+function isTouchDevice() {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
 
 export default function App() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const engineRef = useRef<GameEngine | null>(null);
-  const [gameState, setGameState] = useState<GameState>('LOADING');
-  const [hud, setHud] = useState<HudData>({ score: 0, coins: 0, lives: 3, health: 3, world: '1-1', time: 300, crystals: 0, starPower: false, fireOrb: false, shield: false });
-  const [saveData, setSaveData] = useState<SaveData>(() => SaveSystem.loadSave());
-  const [gameOverData, setGameOverData] = useState<{ score: number; coins: number; level: string } | null>(null);
-  const [levelCompleteData, setLevelCompleteData] = useState<LevelCompleteData | null>(null);
-  const [victoryData, setVictoryData] = useState<VictoryData | null>(null);
-  const [achievementToast, setAchievementToast] = useState<string | null>(null);
-  const [playerName, setPlayerName] = useState(saveData.playerName || '');
-  const [showNameInput, setShowNameInput] = useState(false);
-  const [settings, setSettings] = useState<GameSettings>(() => SaveSystem.loadSettings());
-  const [isMobile, setIsMobile] = useState(false);
+  const canvasRef      = useRef<HTMLCanvasElement>(null);
+  const containerRef   = useRef<HTMLDivElement>(null);
+  const engineRef      = useRef<GameEngine | null>(null);
 
+  const [gameState,         setGameState]         = useState<GameState>('LOADING');
+  const [hud,               setHud]               = useState<HudData>({ score: 0, coins: 0, lives: 3, health: 3, world: '1-1', time: 300, crystals: 0, starPower: false, fireOrb: false, shield: false });
+  const [saveData,          setSaveData]          = useState<SaveData>(() => SaveSystem.loadSave());
+  const [gameOverData,      setGameOverData]      = useState<{ score: number; coins: number; level: string } | null>(null);
+  const [levelCompleteData, setLevelCompleteData] = useState<LevelCompleteData | null>(null);
+  const [victoryData,       setVictoryData]       = useState<VictoryData | null>(null);
+  const [achievementToast,  setAchievementToast]  = useState<string | null>(null);
+  const [playerName,        setPlayerName]        = useState(saveData.playerName || '');
+  const [showNameInput,     setShowNameInput]     = useState(false);
+  const [settings,          setSettings]          = useState<GameSettings>(() => SaveSystem.loadSettings());
+  const [isMobile,          setIsMobile]          = useState(isTouchDevice);
+  const [landscape,         setLandscape]         = useState(isLandscape);
+  const [isFullscreen,      setIsFullscreen]      = useState(false);
+
+  // Orientation / resize tracking
   useEffect(() => {
-    const check = () => {
-      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    const update = () => {
+      setIsMobile(isTouchDevice());
+      setLandscape(isLandscape());
     };
-    check();
-    window.addEventListener('resize', check);
-    return () => window.removeEventListener('resize', check);
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+      document.removeEventListener('fullscreenchange', onFsChange);
+    };
   }, []);
 
+  // Game engine init
   useEffect(() => {
     if (!canvasRef.current) return;
     const engine = new GameEngine(canvasRef.current, {
-      onStateChange: (s) => setGameState(s),
-      onHudUpdate: (h) => setHud(h),
-      onGameOver: (d) => setGameOverData(d),
-      onLevelComplete: (d) => setLevelCompleteData(d),
-      onVictory: (d) => setVictoryData(d),
-      onAchievement: (name) => {
+      onStateChange:  (s)    => setGameState(s),
+      onHudUpdate:    (h)    => setHud(h),
+      onGameOver:     (d)    => setGameOverData(d),
+      onLevelComplete:(d)    => setLevelCompleteData(d),
+      onVictory:      (d)    => setVictoryData(d),
+      onAchievement:  (name) => {
         setAchievementToast(name);
-        setTimeout(() => setAchievementToast(null), 3000);
+        setTimeout(() => setAchievementToast(null), 3500);
       },
     }, saveData);
     engineRef.current = engine;
     engine.init();
-
     const onResize = () => engine.resizeCanvas();
     window.addEventListener('resize', onResize);
     return () => {
@@ -75,43 +97,14 @@ export default function App() {
     engine.startNewGame();
   }, [playerName]);
 
-  const handleContinue = useCallback(() => {
-    engineRef.current?.continueGame();
-  }, []);
-
-  const handleLevelSelect = useCallback((world: number, level: number) => {
-    engineRef.current?.startLevel(world, level);
-  }, []);
-
-  const handleResume = useCallback(() => {
-    engineRef.current?.resume();
-  }, []);
-
-  const handleRestart = useCallback(() => {
-    engineRef.current?.restartLevel();
-  }, []);
-
-  const handleMainMenu = useCallback(() => {
-    engineRef.current?.goToMainMenu();
-  }, []);
-
-  const handleNextLevel = useCallback(() => {
-    setLevelCompleteData(null);
-    engineRef.current?.nextLevel();
-  }, []);
-
-  const handleWorldMap = useCallback(() => {
-    setLevelCompleteData(null);
-    setGameOverData(null);
-    setSaveData(SaveSystem.loadSave());
-    engineRef.current?.goToWorldMap();
-  }, []);
-
-  const handleTryAgain = useCallback(() => {
-    setGameOverData(null);
-    setSaveData(SaveSystem.loadSave());
-    engineRef.current?.restartLevel();
-  }, []);
+  const handleContinue    = useCallback(() => engineRef.current?.continueGame(), []);
+  const handleLevelSelect = useCallback((world: number, level: number) => engineRef.current?.startLevel(world, level), []);
+  const handleResume      = useCallback(() => engineRef.current?.resume(), []);
+  const handleRestart     = useCallback(() => engineRef.current?.restartLevel(), []);
+  const handleMainMenu    = useCallback(() => engineRef.current?.goToMainMenu(), []);
+  const handleNextLevel   = useCallback(() => { setLevelCompleteData(null); engineRef.current?.nextLevel(); }, []);
+  const handleWorldMap    = useCallback(() => { setLevelCompleteData(null); setGameOverData(null); setSaveData(SaveSystem.loadSave()); engineRef.current?.goToWorldMap(); }, []);
+  const handleTryAgain    = useCallback(() => { setGameOverData(null); setSaveData(SaveSystem.loadSave()); engineRef.current?.restartLevel(); }, []);
 
   const handleSettingChange = useCallback((newSettings: GameSettings) => {
     setSettings(newSettings);
@@ -119,15 +112,25 @@ export default function App() {
   }, []);
 
   const handleResetSave = useCallback(() => {
-    if (window.confirm('Are you sure you want to delete all progress? This cannot be undone.')) {
+    if (window.confirm('Delete all progress? This cannot be undone.')) {
       const fresh = SaveSystem.resetSave();
       setSaveData(fresh);
       setPlayerName('');
     }
   }, []);
 
-  const touchState = useRef({ left: false, right: false, jump: false, attack: false, pause: false, up: false, down: false, interact: false });
+  const handleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+        try { (screen.orientation as any)?.lock?.('landscape'); } catch { /* not supported */ }
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch { /* ignore */ }
+  }, []);
 
+  const touchState = useRef({ left: false, right: false, jump: false, attack: false, pause: false, up: false, down: false, interact: false });
   const handleTouchBtn = useCallback((key: string, pressed: boolean) => {
     const engine = engineRef.current;
     if (!engine) return;
@@ -136,6 +139,7 @@ export default function App() {
   }, []);
 
   const isPlaying = gameState === 'PLAYING' || gameState === 'BOSS_FIGHT' || gameState === 'PAUSED';
+  const showPortraitWarning = isMobile && !landscape;
 
   return (
     <div className="pixel-quest-game" ref={containerRef}>
@@ -143,201 +147,303 @@ export default function App() {
         <canvas ref={canvasRef} />
       </div>
 
-      {isPlaying && <Hud hud={hud} />}
+      {showPortraitWarning && <PortraitWarning />}
 
-      {isPlaying && isMobile && (
-        <MobileControls
-          onTouch={handleTouchBtn}
-          onPause={() => engineRef.current?.pause()}
-        />
-      )}
+      {!showPortraitWarning && (
+        <>
+          {isPlaying && <Hud hud={hud} isBoss={gameState === 'BOSS_FIGHT'} />}
 
-      {isPlaying && !isMobile && (
-        <button className="pq-touch-btn pause" style={{ display: 'block' }} onClick={() => engineRef.current?.pause()}>
-          <span style={{ fontSize: '20px' }}>II</span>
-        </button>
-      )}
+          {isPlaying && isMobile && (
+            <MobileControls
+              onTouch={handleTouchBtn}
+              onPause={() => engineRef.current?.pause()}
+              onFullscreen={handleFullscreen}
+              isFullscreen={isFullscreen}
+            />
+          )}
 
-      {gameState === 'PAUSED' && (
-        <PauseMenu
-          onResume={handleResume}
-          onRestart={handleRestart}
-          onSettings={() => setGameState('SETTINGS')}
-          onMainMenu={handleMainMenu}
-        />
-      )}
+          {isPlaying && !isMobile && (
+            <button className="pq-pause-desktop" id="btn-pause-desktop" onClick={() => engineRef.current?.pause()} title="Pause (P / Esc)">❚❚</button>
+          )}
 
-      {gameState === 'MAIN_MENU' && (
-        <MainMenu
-          onPlay={handleStart}
-          onContinue={handleContinue}
-          onLevelSelect={() => setGameState('LEVEL_SELECT')}
-          onSettings={() => setGameState('SETTINGS')}
-          onControls={() => setGameState('CONTROLS')}
-          onCredits={() => setGameState('CREDITS')}
-          onAchievements={() => setGameState('ACHIEVEMENTS')}
-          onLeaderboard={() => setGameState('LEADERBOARD')}
-          hasSave={saveData.unlockedLevels > 1 || saveData.totalScore > 0}
-        />
-      )}
+          {gameState === 'PAUSED' && (
+            <PauseMenu
+              onResume={handleResume}
+              onRestart={handleRestart}
+              onSettings={() => setGameState('SETTINGS')}
+              onMainMenu={handleMainMenu}
+            />
+          )}
 
-      {showNameInput && (
-        <Overlay>
-          <h2 className="pq-subtitle">ENTER YOUR NAME</h2>
-          <input
-            className="pq-input"
-            type="text"
-            value={playerName}
-            maxLength={12}
-            onChange={(e) => setPlayerName(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
-            placeholder="Hero name..."
-            autoFocus
-          />
-          <div style={{ marginTop: 16 }}>
-            <button className="pq-btn primary" onClick={handleNameSubmit}>START</button>
-          </div>
-        </Overlay>
-      )}
+          {gameState === 'MAIN_MENU' && (
+            <MainMenu
+              onPlay={handleStart}
+              onContinue={handleContinue}
+              onLevelSelect={() => setGameState('LEVEL_SELECT')}
+              onSettings={() => setGameState('SETTINGS')}
+              onControls={() => setGameState('CONTROLS')}
+              onCredits={() => setGameState('CREDITS')}
+              onAchievements={() => setGameState('ACHIEVEMENTS')}
+              onLeaderboard={() => setGameState('LEADERBOARD')}
+              hasSave={saveData.unlockedLevels > 1 || saveData.totalScore > 0}
+              onFullscreen={handleFullscreen}
+              isFullscreen={isFullscreen}
+              isMobile={isMobile}
+            />
+          )}
 
-      {gameState === 'STORY_INTRO' && <StoryIntro onContinue={() => engineRef.current?.goToWorldMap()} />}
+          {showNameInput && (
+            <Overlay>
+              <div className="pq-name-box">
+                <div style={{ fontSize: 40 }}>🦸</div>
+                <h2 className="pq-subtitle">ENTER YOUR HERO NAME</h2>
+                <input
+                  className="pq-input"
+                  type="text"
+                  value={playerName}
+                  maxLength={12}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
+                  placeholder="Hero name..."
+                  autoFocus
+                />
+                <div style={{ marginTop: 16 }}>
+                  <button className="pq-btn primary" id="btn-start-game" onClick={handleNameSubmit}>BEGIN QUEST ▶</button>
+                </div>
+              </div>
+            </Overlay>
+          )}
 
-      {gameState === 'WORLD_MAP' && (
-        <WorldMap
-          saveData={saveData}
-          onLevelSelect={handleLevelSelect}
-          onMainMenu={handleMainMenu}
-        />
-      )}
+          {gameState === 'STORY_INTRO' && <StoryIntro onContinue={() => engineRef.current?.goToWorldMap()} />}
 
-      {gameState === 'LEVEL_SELECT' && (
-        <LevelSelect
-          saveData={saveData}
-          onSelect={handleLevelSelect}
-          onBack={() => setGameState('MAIN_MENU')}
-        />
-      )}
+          {gameState === 'WORLD_MAP' && (
+            <WorldMap saveData={saveData} onLevelSelect={handleLevelSelect} onMainMenu={handleMainMenu} />
+          )}
 
-      {gameState === 'SETTINGS' && (
-        <SettingsScreen
-          settings={settings}
-          onChange={handleSettingChange}
-          onBack={() => setGameState(engineRef.current?.state === 'PAUSED' ? 'PAUSED' : 'MAIN_MENU')}
-          onResetSave={handleResetSave}
-        />
-      )}
+          {gameState === 'LEVEL_SELECT' && (
+            <LevelSelect saveData={saveData} onSelect={handleLevelSelect} onBack={() => setGameState('MAIN_MENU')} />
+          )}
 
-      {gameState === 'CONTROLS' && <ControlsScreen onBack={() => setGameState('MAIN_MENU')} />}
-      {gameState === 'CREDITS' && <CreditsScreen onBack={() => setGameState('MAIN_MENU')} />}
+          {gameState === 'SETTINGS' && (
+            <SettingsScreen
+              settings={settings}
+              onChange={handleSettingChange}
+              onBack={() => setGameState(engineRef.current?.state === 'PAUSED' ? 'PAUSED' : 'MAIN_MENU')}
+              onResetSave={handleResetSave}
+            />
+          )}
 
-      {gameState === 'ACHIEVEMENTS' && (
-        <AchievementsScreen saveData={saveData} onBack={() => setGameState('MAIN_MENU')} />
-      )}
+          {gameState === 'CONTROLS'     && <ControlsScreen     onBack={() => setGameState('MAIN_MENU')} />}
+          {gameState === 'CREDITS'      && <CreditsScreen      onBack={() => setGameState('MAIN_MENU')} />}
+          {gameState === 'ACHIEVEMENTS' && <AchievementsScreen saveData={saveData} onBack={() => setGameState('MAIN_MENU')} />}
+          {gameState === 'LEADERBOARD'  && <LeaderboardScreen  saveData={saveData} onBack={() => setGameState('MAIN_MENU')} />}
 
-      {gameState === 'LEADERBOARD' && (
-        <LeaderboardScreen saveData={saveData} onBack={() => setGameState('MAIN_MENU')} />
-      )}
+          {gameState === 'GAME_OVER' && gameOverData && (
+            <GameOverScreen data={gameOverData} onTryAgain={handleTryAgain} onWorldMap={handleWorldMap} onMainMenu={handleMainMenu} />
+          )}
 
-      {gameState === 'GAME_OVER' && gameOverData && (
-        <GameOverScreen data={gameOverData} onTryAgain={handleTryAgain} onWorldMap={handleWorldMap} onMainMenu={handleMainMenu} />
-      )}
+          {gameState === 'LEVEL_COMPLETE' && levelCompleteData && (
+            <LevelCompleteScreen data={levelCompleteData} onNext={handleNextLevel} onReplay={handleRestart} onWorldMap={handleWorldMap} />
+          )}
 
-      {gameState === 'LEVEL_COMPLETE' && levelCompleteData && (
-        <LevelCompleteScreen data={levelCompleteData} onNext={handleNextLevel} onReplay={handleRestart} onWorldMap={handleWorldMap} />
-      )}
+          {gameState === 'VICTORY' && victoryData && (
+            <VictoryScreen data={victoryData} onPlayAgain={() => { engineRef.current?.startNewGame(); }} onWorldMap={handleWorldMap} onCredits={() => setGameState('CREDITS')} />
+          )}
 
-      {gameState === 'VICTORY' && victoryData && (
-        <VictoryScreen data={victoryData} onPlayAgain={() => { engineRef.current?.startNewGame(); }} onWorldMap={handleWorldMap} onCredits={() => setGameState('CREDITS')} />
-      )}
-
-      {achievementToast && (
-        <div style={{
-          position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)',
-          background: 'rgba(74,255,107,0.2)', border: '2px solid #4aff6b', borderRadius: 8,
-          padding: '8px 20px', color: '#4aff6b', fontWeight: 'bold', fontSize: 14, zIndex: 50,
-          animation: 'pq-fade-in 0.3s ease-out', pointerEvents: 'none',
-        }}>
-          ACHIEVEMENT: {achievementToast}
-        </div>
+          {achievementToast && (
+            <div className="pq-achievement-toast pq-fade-in" id="achievement-toast">
+              <span style={{ fontSize: 22 }}>🏆</span>
+              <div>
+                <div style={{ fontSize: 10, opacity: 0.7, letterSpacing: 2 }}>ACHIEVEMENT UNLOCKED</div>
+                <div style={{ fontWeight: 'bold' }}>{achievementToast}</div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
 
+// ─── Portrait Warning ────────────────────────────────────────────────────────
+function PortraitWarning() {
+  return (
+    <div className="pq-portrait-warning">
+      <div className="pq-portrait-inner">
+        <div className="pq-phone-anim">
+          <div className="pq-phone">
+            <div className="pq-phone-screen">🎮</div>
+          </div>
+        </div>
+        <h2 className="pq-portrait-title">ROTATE YOUR DEVICE</h2>
+        <p className="pq-portrait-sub">This game is best played in<br /><strong>LANDSCAPE</strong> mode</p>
+        <div className="pq-rotate-arrow">↻</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Overlay ─────────────────────────────────────────────────────────────────
 function Overlay({ children }: { children: React.ReactNode }) {
   return <div className="pq-overlay pq-fade-in">{children}</div>;
 }
 
-function Hud({ hud }: { hud: HudData }) {
+// ─── HUD ─────────────────────────────────────────────────────────────────────
+function Hud({ hud, isBoss }: { hud: HudData; isBoss: boolean }) {
   const timeClass = hud.time <= 10 ? 'critical' : hud.time <= 30 ? 'warning' : '';
   const mins = Math.floor(hud.time / 60);
   const secs = Math.floor(hud.time % 60);
+  const healthPct = (hud.health / 3) * 100;
+  const healthColor = hud.health <= 1 ? '#ff3333' : hud.health <= 2 ? '#ffaa00' : '#44ff88';
 
   return (
-    <div className="pq-hud">
-      <div className="pq-hud-top">
-        <div className="pq-hud-item">SCORE {hud.score}</div>
-        <div className="pq-hud-item coins">COINS {hud.coins}</div>
-        <div className="pq-hud-item health">
-          {'♥'.repeat(hud.health)}{'♡'.repeat(Math.max(0, 3 - hud.health))}
+    <div className="pq-hud" id="hud">
+      <div className="pq-hud-bar">
+        <div className="pq-hud-group">
+          <div className="pq-hud-item score">
+            <span className="pq-hud-label">SCORE</span>
+            <span className="pq-hud-val">{hud.score}</span>
+          </div>
+          <div className="pq-hud-item coins">
+            <span className="pq-hud-icon">🪙</span>
+            <span className="pq-hud-val">{hud.coins}</span>
+          </div>
+          {hud.crystals > 0 && (
+            <div className="pq-hud-item crystals">
+              <span className="pq-hud-icon">💎</span>
+              <span className="pq-hud-val">{hud.crystals}/3</span>
+            </div>
+          )}
         </div>
-        <div className="pq-hud-item">LIVES {'★'.repeat(hud.lives)}</div>
-        <div className="pq-hud-item world">WORLD {hud.world}</div>
-        <div className={`pq-hud-item time ${timeClass}`}>TIME {mins}:{secs.toString().padStart(2, '0')}</div>
-        {hud.crystals > 0 && <div className="pq-hud-item">CRYSTALS {hud.crystals}/3</div>}
+        <div className="pq-hud-center">
+          <div className="pq-hud-world">{isBoss ? '⚔ BOSS ⚔' : `WORLD ${hud.world}`}</div>
+        </div>
+        <div className="pq-hud-group right">
+          <div className={`pq-hud-item time ${timeClass}`}>
+            <span className="pq-hud-icon">⏱</span>
+            <span className="pq-hud-val">{mins}:{secs.toString().padStart(2, '0')}</span>
+          </div>
+          <div className="pq-hud-item lives">
+            <span className="pq-hud-icon">⭐</span>
+            <span className="pq-hud-val">×{hud.lives}</span>
+          </div>
+        </div>
+      </div>
+      <div className="pq-health-row">
+        <div className="pq-health-hearts">
+          {[1,2,3].map(i => (
+            <span key={i} className={`pq-heart ${i <= hud.health ? 'full' : 'empty'}`}>{i <= hud.health ? '♥' : '♡'}</span>
+          ))}
+        </div>
+        <div className="pq-health-bar-bg">
+          <div className="pq-health-bar-fill" style={{ width: `${healthPct}%`, background: healthColor }} />
+        </div>
       </div>
       {(hud.starPower || hud.fireOrb || hud.shield) && (
-        <div style={{ position: 'absolute', top: 50, left: 12, display: 'flex', gap: 4 }}>
-          {hud.starPower && <span className="pq-hud-item" style={{ color: '#ffd700' }}>STAR</span>}
-          {hud.fireOrb && <span className="pq-hud-item" style={{ color: '#ff6600' }}>FIRE</span>}
-          {hud.shield && <span className="pq-hud-item" style={{ color: '#60a0ff' }}>SHIELD</span>}
+        <div className="pq-powerups">
+          {hud.starPower && <span className="pq-powerup star">⭐ STAR</span>}
+          {hud.fireOrb   && <span className="pq-powerup fire">🔥 FIRE</span>}
+          {hud.shield    && <span className="pq-powerup shield">🛡 SHIELD</span>}
         </div>
       )}
     </div>
   );
 }
 
-function MobileControls({ onTouch, onPause }: { onTouch: (key: string, val: boolean) => void; onPause: () => void }) {
+// ─── Mobile Controls (Landscape) ─────────────────────────────────────────────
+function MobileControls({
+  onTouch, onPause, onFullscreen, isFullscreen,
+}: {
+  onTouch: (key: string, val: boolean) => void;
+  onPause: () => void;
+  onFullscreen: () => void;
+  isFullscreen: boolean;
+}) {
   const makeHandlers = (key: string) => ({
-    onPointerDown: (e: React.PointerEvent) => { e.preventDefault(); onTouch(key, true); },
-    onPointerUp: (e: React.PointerEvent) => { e.preventDefault(); onTouch(key, false); },
-    onPointerLeave: () => onTouch(key, false),
+    onPointerDown:   (e: React.PointerEvent) => { e.preventDefault(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); onTouch(key, true); },
+    onPointerUp:     (e: React.PointerEvent) => { e.preventDefault(); onTouch(key, false); },
+    onPointerLeave:  () => onTouch(key, false),
     onPointerCancel: () => onTouch(key, false),
   });
 
   return (
-    <div className="pq-mobile-controls">
-      <button className="pq-touch-btn pause" onClick={(e) => { e.preventDefault(); onPause(); }}>II</button>
-      <button className="pq-touch-btn left" {...makeHandlers('left')}>◀</button>
-      <button className="pq-touch-btn right" {...makeHandlers('right')}>▶</button>
-      <button className="pq-touch-btn jump" {...makeHandlers('jump')}>JUMP</button>
-      <button className="pq-touch-btn attack" {...makeHandlers('attack')}>ATK</button>
+    <div className="pq-mobile-controls" id="mobile-controls">
+      <div className="pq-sys-btns">
+        <button className="pq-sys-btn" id="btn-fs" onClick={onFullscreen} title="Fullscreen">
+          {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+        </button>
+        <button className="pq-sys-btn" id="btn-pause-mobile" onClick={onPause} title="Pause">❚❚</button>
+      </div>
+      <div className="pq-dpad">
+        <button className="pq-dpad-btn left"  id="btn-left"  {...makeHandlers('left')}>◀</button>
+        <button className="pq-dpad-btn right" id="btn-right" {...makeHandlers('right')}>▶</button>
+        <button className="pq-dpad-btn down"  id="btn-down"  {...makeHandlers('down')}>▼</button>
+      </div>
+      <div className="pq-action-btns">
+        <button className="pq-action-btn attack" id="btn-attack" {...makeHandlers('attack')}>
+          <span className="pq-btn-label">ATK</span>
+        </button>
+        <button className="pq-action-btn jump" id="btn-jump" {...makeHandlers('jump')}>
+          <span className="pq-btn-label">JUMP</span>
+        </button>
+      </div>
     </div>
   );
 }
 
-function MainMenu({ onPlay, onContinue, onLevelSelect, onSettings, onControls, onCredits, onAchievements, onLeaderboard, hasSave }: {
-  onPlay: () => void; onContinue: () => void; onLevelSelect: () => void; onSettings: () => void; onControls: () => void; onCredits: () => void; onAchievements: () => void; onLeaderboard: () => void; hasSave: boolean;
+function MainMenu({ onPlay, onContinue, onLevelSelect, onSettings, onControls, onCredits, onAchievements, onLeaderboard, hasSave, onFullscreen, isFullscreen, isMobile }: {
+  onPlay: () => void; onContinue: () => void; onLevelSelect: () => void; onSettings: () => void;
+  onControls: () => void; onCredits: () => void; onAchievements: () => void; onLeaderboard: () => void;
+  hasSave: boolean; onFullscreen: () => void; isFullscreen: boolean; isMobile: boolean;
 }) {
   return (
     <div className="pq-overlay pq-fade-in" style={{ background: 'transparent' }}>
-      <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <h1 className="pq-title pq-title-glow">PIXEL QUEST</h1>
-        <h2 className="pq-subtitle">KINGDOM OF THE STARS</h2>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <button className="pq-btn primary" onClick={onPlay}><Play size={18} style={{ display: 'inline', marginRight: 8 }} />PLAY</button>
-        {hasSave && <button className="pq-btn" onClick={onContinue}><ChevronRight size={18} style={{ display: 'inline', marginRight: 8 }} />CONTINUE</button>}
-        <button className="pq-btn" onClick={onLevelSelect}>LEVEL SELECT</button>
-        <button className="pq-btn" onClick={onSettings}><Settings size={18} style={{ display: 'inline', marginRight: 8 }} />SETTINGS</button>
-        <button className="pq-btn" onClick={onControls}><Gamepad2 size={18} style={{ display: 'inline', marginRight: 8 }} />CONTROLS</button>
-        <button className="pq-btn" onClick={onAchievements}><Award size={18} style={{ display: 'inline', marginRight: 8 }} />ACHIEVEMENTS</button>
-        <button className="pq-btn" onClick={onLeaderboard}><Trophy size={18} style={{ display: 'inline', marginRight: 8 }} />LEADERBOARD</button>
-        <button className="pq-btn" onClick={onCredits}>CREDITS</button>
+      <div className="pq-menu-container">
+        <div className="pq-menu-title-area">
+          <div className="pq-menu-logo">🌟</div>
+          <h1 className="pq-title pq-title-glow" id="title-main">PIXEL QUEST</h1>
+          <p className="pq-menu-tagline">KINGDOM OF THE STARS</p>
+          <div className="pq-menu-version">v2.0 HD</div>
+        </div>
+        <div className="pq-menu-buttons">
+          <button className="pq-btn primary large" id="btn-play" onClick={onPlay}>
+            <Play size={20} style={{ display: 'inline', marginRight: 8 }} />PLAY
+          </button>
+          {hasSave && (
+            <button className="pq-btn large" id="btn-continue" onClick={onContinue}>
+              <ChevronRight size={20} style={{ display: 'inline', marginRight: 8 }} />CONTINUE
+            </button>
+          )}
+          <div className="pq-btn-row">
+            <button className="pq-btn small" id="btn-level-select" onClick={onLevelSelect}>LEVELS</button>
+            <button className="pq-btn small" id="btn-achievements" onClick={onAchievements}>
+              <Award size={16} style={{ display: 'inline', marginRight: 6 }} />AWARDS
+            </button>
+            <button className="pq-btn small" id="btn-leaderboard" onClick={onLeaderboard}>
+              <Trophy size={16} style={{ display: 'inline', marginRight: 6 }} />SCORES
+            </button>
+          </div>
+          <div className="pq-btn-row">
+            <button className="pq-btn small" id="btn-settings" onClick={onSettings}>
+              <Settings size={16} style={{ display: 'inline', marginRight: 6 }} />SETTINGS
+            </button>
+            <button className="pq-btn small" id="btn-controls" onClick={onControls}>
+              <Gamepad2 size={16} style={{ display: 'inline', marginRight: 6 }} />CONTROLS
+            </button>
+            <button className="pq-btn small" id="btn-credits" onClick={onCredits}>CREDITS</button>
+          </div>
+          {isMobile && (
+            <button className="pq-btn small" id="btn-fullscreen-menu" onClick={onFullscreen}>
+              {isFullscreen ? <Minimize size={16} style={{ display: 'inline', marginRight: 6 }} /> : <Maximize size={16} style={{ display: 'inline', marginRight: 6 }} />}
+              {isFullscreen ? 'EXIT FULLSCREEN' : 'FULLSCREEN'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
 
 function StoryIntro({ onContinue }: { onContinue: () => void }) {
   return (

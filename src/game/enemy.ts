@@ -315,89 +315,200 @@ export class Enemy {
   private drawSlime(ctx: CanvasRenderingContext2D): void {
     const w = this.width;
     const h = this.height;
-    const squish = Math.sin(this.animTimer * 6) * 2;
-    ctx.fillStyle = '#3aa050';
-    ctx.fillRect(-w / 2, -h + squish, w, h - squish);
-    ctx.fillStyle = '#5ac070';
-    ctx.fillRect(-w / 2 + 2, -h + 2 + squish, w - 4, 4);
-    ctx.fillStyle = '#2a8040';
-    ctx.fillRect(-w / 2, -3, w, 3);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(-4, -h + 8 + squish, 3, 3);
-    ctx.fillRect(4, -h + 8 + squish, 3, 3);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(-3, -h + 8 + squish, 1, 1);
-    ctx.fillRect(5, -h + 8 + squish, 1, 1);
+    const squish = Math.sin(this.animTimer * 6) * 3;
+
+    // HD Gelatinous Slime Dome
+    const slimeGrad = ctx.createLinearGradient(0, -h + squish, 0, 0);
+    slimeGrad.addColorStop(0, '#6ee7b7');
+    slimeGrad.addColorStop(0.4, '#10b981');
+    slimeGrad.addColorStop(1, '#047857');
+
+    ctx.fillStyle = slimeGrad;
+    ctx.beginPath();
+    ctx.moveTo(-w / 2, 0);
+    ctx.quadraticCurveTo(-w / 2, -h + squish, 0, -h + squish);
+    ctx.quadraticCurveTo(w / 2, -h + squish, w / 2, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Inner Glowing Core
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.beginPath();
+    ctx.arc(0, -h * 0.4 + squish * 0.5, 5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Specular Gelatin Highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.beginPath();
+    ctx.ellipse(-w * 0.22, -h * 0.72 + squish * 0.8, 4, 2, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Expressive Eyes with Highlights
+    ctx.fillStyle = '#064e3b';
+    ctx.beginPath();
+    ctx.arc(-5, -h * 0.45 + squish, 3, 0, Math.PI * 2);
+    ctx.arc(5, -h * 0.45 + squish, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(-6, -h * 0.48 + squish, 1.2, 0, Math.PI * 2);
+    ctx.arc(4, -h * 0.48 + squish, 1.2, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawBat(ctx: CanvasRenderingContext2D): void {
     const w = this.width;
     const h = this.height;
-    const flap = Math.sin(this.animTimer * 15) * 4;
-    ctx.fillStyle = '#553388';
-    ctx.fillRect(-w / 2, -h + 2, w, h - 4);
-    ctx.fillStyle = '#7744aa';
-    ctx.fillRect(-w / 2 - 6, -h + 4 + flap, 6, 4);
-    ctx.fillRect(w / 2, -h + 4 - flap, 6, 4);
-    ctx.fillStyle = '#ff4444';
-    ctx.fillRect(-5, -h + 6, 2, 2);
-    ctx.fillRect(3, -h + 6, 2, 2);
+    const flap = Math.sin(this.animTimer * 16) * 7;
+
+    // Bat Membranous Wings with joints
+    ctx.fillStyle = '#4c1d95';
+    ctx.beginPath();
+    ctx.moveTo(-w / 4, -h / 2);
+    ctx.lineTo(-w / 2 - 10, -h / 2 - 8 + flap);
+    ctx.lineTo(-w / 2 - 2, -h / 2 + 2 + flap * 0.5);
+    ctx.lineTo(-w / 2 - 6, -h / 2 + 8 + flap);
+    ctx.lineTo(-w / 4, -h / 2 + 4);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(w / 4, -h / 2);
+    ctx.lineTo(w / 2 + 10, -h / 2 - 8 + flap);
+    ctx.lineTo(w / 2 + 2, -h / 2 + 2 + flap * 0.5);
+    ctx.lineTo(w / 2 + 6, -h / 2 + 8 + flap);
+    ctx.lineTo(w / 4, -h / 2 + 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Bat Body & Ears
+    const bodyGrad = ctx.createLinearGradient(0, -h, 0, 0);
+    bodyGrad.addColorStop(0, '#6d28d9');
+    bodyGrad.addColorStop(1, '#2e1065');
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, -h / 2, w / 4, h / 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears
+    ctx.fillStyle = '#4c1d95';
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.2, -h + 4);
+    ctx.lineTo(-w * 0.28, -h - 3);
+    ctx.lineTo(-w * 0.08, -h + 2);
+    ctx.moveTo(w * 0.2, -h + 4);
+    ctx.lineTo(w * 0.28, -h - 3);
+    ctx.lineTo(w * 0.08, -h + 2);
+    ctx.fill();
+
+    // Glowing Crimson Eyes
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(-3.5, -h * 0.55, 1.8, 0, Math.PI * 2);
+    ctx.arc(3.5, -h * 0.55, 1.8, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawSpikeBug(ctx: CanvasRenderingContext2D): void {
     const w = this.width;
     const h = this.height;
-    ctx.fillStyle = '#aa3333';
-    ctx.fillRect(-w / 2, -h + 4, w, h - 4);
-    ctx.fillStyle = '#cc5555';
-    ctx.fillRect(-w / 2 + 2, -h + 6, w - 4, 4);
-    ctx.fillStyle = '#dddddd';
+
+    // Hardened Chitin Shell
+    const shellGrad = ctx.createLinearGradient(-w / 2, -h, w / 2, 0);
+    shellGrad.addColorStop(0, '#dc2626');
+    shellGrad.addColorStop(0.6, '#991b1b');
+    shellGrad.addColorStop(1, '#450a0a');
+    ctx.fillStyle = shellGrad;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-w / 2, -h + 4, w, h - 4, 8) : ctx.fillRect(-w / 2, -h + 4, w, h - 4);
+    ctx.fill();
+
+    // Metallic Steel Spikes
+    ctx.fillStyle = '#e2e8f0';
     for (let i = 0; i < 4; i++) {
-      ctx.fillRect(-w / 2 + 2 + i * 6, -h, 2, 4);
+      const sx = -w / 2 + 4 + i * 6;
+      ctx.beginPath();
+      ctx.moveTo(sx, -h + 4);
+      ctx.lineTo(sx + 2.5, -h - 4);
+      ctx.lineTo(sx + 5, -h + 4);
+      ctx.closePath();
+      ctx.fill();
     }
-    ctx.fillStyle = '#000';
-    ctx.fillRect(-4, -h + 8, 2, 2);
-    ctx.fillRect(4, -h + 8, 2, 2);
-    ctx.fillStyle = '#882222';
-    ctx.fillRect(-w / 2, -2, w, 2);
+
+    // Carapace rim highlight
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.fillRect(-w / 2 + 2, -h + 6, w - 4, 2);
+
+    // Glowing Black Visage & Angry Eyes
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-w * 0.35, -h + 10, w * 0.7, 6);
+    ctx.fillStyle = '#facc15';
+    ctx.fillRect(-5, -h + 11, 3, 3);
+    ctx.fillRect(2, -h + 11, 3, 3);
   }
 
   private drawFireSpirit(ctx: CanvasRenderingContext2D): void {
     const w = this.width;
     const h = this.height;
-    const flicker = Math.sin(this.animTimer * 10) * 3;
-    ctx.fillStyle = '#ff4400';
+    const flicker = Math.sin(this.animTimer * 12) * 4;
+
+    // Radiant Heat Bloom
+    const bloom = ctx.createRadialGradient(0, -h / 2, 2, 0, -h / 2, w * 0.8 + flicker);
+    bloom.addColorStop(0, 'rgba(255, 240, 100, 0.7)');
+    bloom.addColorStop(0.4, 'rgba(255, 100, 0, 0.35)');
+    bloom.addColorStop(1, 'rgba(255, 50, 0, 0)');
+    ctx.fillStyle = bloom;
     ctx.beginPath();
-    ctx.arc(0, -h / 2, w / 2 + flicker, 0, Math.PI * 2);
+    ctx.arc(0, -h / 2, w * 0.8 + flicker, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#ff8800';
+
+    // Fire Orb Core
+    const fireGrad = ctx.createRadialGradient(0, -h / 2, 1, 0, -h / 2, w / 2);
+    fireGrad.addColorStop(0, '#ffffff');
+    fireGrad.addColorStop(0.3, '#fde047');
+    fireGrad.addColorStop(0.7, '#ea580c');
+    fireGrad.addColorStop(1, '#9a3412');
+    ctx.fillStyle = fireGrad;
     ctx.beginPath();
-    ctx.arc(0, -h / 2, w / 3, 0, Math.PI * 2);
+    ctx.arc(0, -h / 2, w / 2 + flicker * 0.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#ffff00';
+
+    // Dancing Eyes
+    ctx.fillStyle = '#450a0a';
     ctx.beginPath();
-    ctx.arc(0, -h / 2, w / 5, 0, Math.PI * 2);
+    ctx.arc(-4, -h / 2, 2.5, 0, Math.PI * 2);
+    ctx.arc(4, -h / 2, 2.5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#000';
-    ctx.fillRect(-4, -h / 2 - 2, 2, 2);
-    ctx.fillRect(2, -h / 2 - 2, 2, 2);
   }
 
   private drawShadowKnight(ctx: CanvasRenderingContext2D): void {
     const w = this.width;
     const h = this.height;
-    ctx.fillStyle = '#2a2a3a';
+
+    // Dark Plate Armor
+    const armorGrad = ctx.createLinearGradient(-w / 2, -h, w / 2, 0);
+    armorGrad.addColorStop(0, '#334155');
+    armorGrad.addColorStop(0.5, '#1e293b');
+    armorGrad.addColorStop(1, '#0f172a');
+    ctx.fillStyle = armorGrad;
     ctx.fillRect(-w / 2, -h, w, h);
-    ctx.fillStyle = '#3a3a4a';
-    ctx.fillRect(-w / 2 + 2, -h + 2, w - 4, h - 4);
-    ctx.fillStyle = '#1a1a2a';
-    ctx.fillRect(-w / 2 + 4, -h + 6, w - 8, 6);
-    ctx.fillStyle = '#ff4444';
-    ctx.fillRect(-5, -h + 8, 3, 2);
-    ctx.fillRect(2, -h + 8, 3, 2);
-    ctx.fillStyle = '#555566';
-    ctx.fillRect(w / 2 - 2, -h + 10, 6, 3);
-    ctx.fillStyle = '#444455';
+
+    // Steel Edge Trims
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(-w / 2, -h, w, 3);
+    ctx.fillRect(-w / 2, -h + 16, w, 2);
     ctx.fillRect(-w / 2, -4, w, 4);
+
+    // Glowing Crimson Visor Slit
+    ctx.fillStyle = '#f43f5e';
+    ctx.fillRect(-w * 0.35, -h + 8, w * 0.7, 4);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-2, -h + 9, 4, 2);
+
+    // Shoulder Pauldrons
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(-w / 2 - 4, -h + 4, 5, 12);
+    ctx.fillRect(w / 2 - 1, -h + 4, 5, 12);
   }
 }

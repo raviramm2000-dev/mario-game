@@ -15,7 +15,7 @@ import { PowerUp } from './powerups';
 import { BackgroundRenderer, renderPlatform, renderHazard, renderCheckpoint, renderFinish } from './renderer';
 import { generateLevel, WORLD_THEMES, getBossType, TOTAL_LEVELS } from './level';
 import { SaveSystem } from './saveSystem';
-import { clamp, formatTime } from './utils';
+import { clamp, formatTime, lerp } from './utils';
 
 export interface GameCallbacks {
   onStateChange: (state: GameState) => void;
@@ -117,6 +117,11 @@ export class GameEngine {
   private bossDefeated = false;
   private levelCompleteTimer = 0;
   private victoryTimer = 0;
+  private bossWarningTimer = 0;
+  private bossDelayedHealth = 0;
+  private levelTransitionTimer = 0;
+  private lowFpsSeconds = 0;
+  private autoQualityTier: 'low' | 'medium' | 'high' | 'ultra' = 'high';
 
   constructor(canvas: HTMLCanvasElement, callbacks: GameCallbacks, saveData: SaveData) {
     this.canvas = canvas;
@@ -151,31 +156,40 @@ export class GameEngine {
   }
 
   resizeCanvas(): void {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const container = this.canvas.parentElement;
     const cw = container?.clientWidth || window.innerWidth;
     const ch = container?.clientHeight || window.innerHeight;
 
-    const targetAspect = 16 / 9;
-    let w = cw;
-    let h = ch;
-    if (w / h > targetAspect) {
-      w = h * targetAspect;
+    // HD Canvas System: Base logical height = 720
+    // Dynamic aspect ratio between 16:9 (1280x720) and 20:9 (1600x720) for modern mobile landscape screens
+    const screenAspect = cw / ch;
+    const aspect = Math.max(16 / 9, Math.min(20 / 9, screenAspect));
+    const logicalHeight = 720;
+    const logicalWidth = Math.round(logicalHeight * aspect);
+
+    let cssW = cw;
+    let cssH = ch;
+    if (cssW / cssH > aspect) {
+      cssW = cssH * aspect;
     } else {
-      h = w / targetAspect;
+      cssH = cssW / aspect;
     }
 
-    this.canvas.width = w * dpr;
-    this.canvas.height = h * dpr;
-    this.canvas.style.width = `${w}px`;
-    this.canvas.style.height = `${h}px`;
-    this.ctx.scale(dpr, dpr);
-    this.ctx.imageSmoothingEnabled = false;
+    this.canvas.width = Math.round(logicalWidth * dpr);
+    this.canvas.height = Math.round(logicalHeight * dpr);
+    this.canvas.style.width = `${Math.round(cssW)}px`;
+    this.canvas.style.height = `${Math.round(cssH)}px`;
 
-    this.viewWidth = w;
-    this.viewHeight = h;
-    this.camera.setViewSize(w, h);
-    if (this.bgRenderer) this.bgRenderer.setViewSize(w, h);
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.scale(dpr, dpr);
+    this.ctx.imageSmoothingEnabled = true;
+    this.ctx.imageSmoothingQuality = 'high';
+
+    this.viewWidth = logicalWidth;
+    this.viewHeight = logicalHeight;
+    this.camera.setViewSize(logicalWidth, logicalHeight);
+    if (this.bgRenderer) this.bgRenderer.setViewSize(logicalWidth, logicalHeight);
   }
 
   private setState(state: GameState): void {
@@ -296,8 +310,8 @@ export class GameEngine {
       levelData.spawn.x, levelData.spawn.y,
       this.physics, this.collision,
       {
-        onJump: () => { this.audio.playSound('jump'); this.particles.dust(this.player!.x + this.player!.width / 2, this.player!.y + this.player!.height); },
-        onLand: () => { this.audio.playSound('land'); this.particles.dust(this.player!.x + this.player!.width / 2, this.player!.y + this.player!.height); },
+        onJump: () => { this.audio.playSound('jump'); this.particles.dust(this.player!.x + this.player!.width / 2, this.player!.y + this.player!.height, this.player!.facing); },
+        onLand: () => { this.audio.playSound('land'); this.particles.landing(this.player!.x + this.player!.width / 2, this.player!.y + this.player!.height); },
         onAttack: () => { this.audio.playSound('attack'); if (this.player!.hasFireOrb) this.shootPlayerProjectile(); },
         onHurt: () => { this.audio.playSound('playerHurt'); this.screenFlash = 0.3; this.screenFlashColor = '#ff0000'; if (this.settings.screenShake) this.camera.shake(8); },
         onDeath: () => { this.audio.playSound('death'); this.particles.explosion(this.player!.x + this.player!.width / 2, this.player!.y + this.player!.height / 2, '#ff4444', 20); if (this.settings.screenShake) this.camera.shake(15); },
@@ -310,12 +324,13 @@ export class GameEngine {
     for (const e of levelData.enemies) {
       if (e.type === 'rockGolem' || e.type === 'skyDragon' || e.type === 'voidKing') {
         this.boss = new Boss(e.type as BossType, e.x, e.y, this.collision, this.particles, {
-          onShoot: (x, y, vx, vy, owner, dmg) => this.addProjectile(x, y, vx, vy, owner, dmg),
+          onShoot: (x, y, vx, vy, owner, dmg) => this.addProjectile(x, y, vx, vy, owner as 'player' | 'enemy' | 'boss', dmg),
           onDefeat: (boss) => this.onBossDefeated(boss),
           onHurtPlayer: (dmg) => { if (this.player) this.player.takeDamage(dmg); },
           onSummon: (type, x, y) => this.summonEnemy(type, x, y),
           onShake: (amt) => { if (this.settings.screenShake) this.camera.shake(amt); },
         });
+        this.bossDelayedHealth = this.boss.health;
       } else {
         this.enemies.push(new Enemy(e.type as any, e.x, e.y, this.collision, this.particles, {
           onDefeat: (enemy) => this.onEnemyDefeated(enemy),
@@ -331,7 +346,7 @@ export class GameEngine {
               this.player.takeDamage(enemy.type === 'spikeBug' ? 1 : 1);
             }
           },
-          onShoot: (x, y, vx, vy, owner) => this.addProjectile(x, y, vx, vy, owner),
+          onShoot: (x, y, vx, vy, owner) => this.addProjectile(x, y, vx, vy, owner as 'player' | 'enemy' | 'boss'),
         }, e.patrolRange || 100, speedMult));
       }
     }
@@ -375,13 +390,20 @@ export class GameEngine {
 
     this.fadeAlpha = 1;
     this.fadeDir = -1;
+    this.levelTransitionTimer = 2.8;
+    if (levelData.isBoss) {
+      this.bossWarningTimer = 2.5;
+      if (this.settings.screenShake) this.camera.shake(12);
+    } else {
+      this.bossWarningTimer = 0;
+    }
     this.setState('PLAYING');
     this.updateHud();
 
     this.audio.playMusic(levelData.isBoss ? 'boss' : theme.music);
   }
 
-  private addProjectile(x: number, y: number, vx: number, vy: number, owner: string, damage = 1): void {
+  private addProjectile(x: number, y: number, vx: number, vy: number, owner: 'player' | 'enemy' | 'boss', damage = 1): void {
     const color = owner === 'player' ? '#44ff88' : owner === 'boss' ? '#ff44ff' : '#ff6600';
     this.projectiles.push(new Projectile({
       x, y, vx, vy, damage, owner, lifetime: GAME_CONFIG.projectileLifetime, color, size: 6,
@@ -401,7 +423,7 @@ export class GameEngine {
     this.enemies.push(new Enemy(type as any, x, y, this.collision, this.particles, {
       onDefeat: (enemy) => this.onEnemyDefeated(enemy),
       onPlayerContact: (enemy) => { if (this.player) this.player.takeDamage(1); },
-      onShoot: (sx, sy, svx, svy, owner) => this.addProjectile(sx, sy, svx, svy, owner),
+      onShoot: (sx, sy, svx, svy, owner) => this.addProjectile(sx, sy, svx, svy, owner as 'player' | 'enemy' | 'boss'),
     }, 100, speedMult));
   }
 
@@ -531,6 +553,22 @@ export class GameEngine {
       this.fps = this.fpsCount;
       this.fpsCount = 0;
       this.fpsTimer = 0;
+
+      // Auto graphics quality adjustment
+      if (this.settings.graphicsQuality === 'auto' || !this.settings.graphicsQuality) {
+        if (this.fps < 45) {
+          this.lowFpsSeconds += 1;
+          if (this.lowFpsSeconds >= 3) {
+            if (this.autoQualityTier === 'ultra') this.autoQualityTier = 'high';
+            else if (this.autoQualityTier === 'high') this.autoQualityTier = 'medium';
+            else if (this.autoQualityTier === 'medium') this.autoQualityTier = 'low';
+            this.applyGraphicsTier(this.autoQualityTier);
+            this.lowFpsSeconds = 0;
+          }
+        } else {
+          this.lowFpsSeconds = Math.max(0, this.lowFpsSeconds - 1);
+        }
+      }
     }
 
     this.update(dt);
@@ -569,6 +607,12 @@ export class GameEngine {
       if (this.fadeDir > 0 && this.fadeAlpha >= 1) { this.fadeAlpha = 1; this.fadeDir = 0; if (this.pendingAction) { this.pendingAction(); this.pendingAction = null; } }
     }
 
+    if (this.bossWarningTimer > 0) this.bossWarningTimer -= dt;
+    if (this.levelTransitionTimer > 0) this.levelTransitionTimer -= dt;
+    if (this.boss) {
+      this.bossDelayedHealth = lerp(this.bossDelayedHealth, this.boss.health, dt * 3.5);
+    }
+
     this.timeLeft -= dt;
     if (this.timeLeft <= 0) {
       this.timeLeft = 0;
@@ -583,7 +627,7 @@ export class GameEngine {
 
     if (this.player) {
       this.player.update(dt, input, this.solids);
-      this.camera.follow(this.player.x, this.player.y, this.player.width, this.player.height);
+      this.camera.follow(this.player.x, this.player.y, this.player.width, this.player.height, this.player.facing, this.player.vx);
     }
     this.camera.update(dt);
 
@@ -850,6 +894,18 @@ export class GameEngine {
 
     this.particles.render(ctx, camX, camY);
 
+    if (this.boss && this.boss.alive && (this.isBossLevel || this.state === 'BOSS_FIGHT')) {
+      this.renderBossHealthBar(ctx);
+    }
+
+    if (this.bossWarningTimer > 0) {
+      this.renderBossWarning(ctx);
+    }
+
+    if (this.levelTransitionTimer > 0) {
+      this.renderLevelTransition(ctx);
+    }
+
     if (this.screenFlash > 0) {
       ctx.globalAlpha = this.screenFlash;
       ctx.fillStyle = this.screenFlashColor;
@@ -865,6 +921,146 @@ export class GameEngine {
     if (this.debugMode) {
       this.renderDebug(ctx);
     }
+  }
+
+  private applyGraphicsTier(tier: 'low' | 'medium' | 'high' | 'ultra'): void {
+    if (tier === 'low') {
+      this.particles.setMaxParticles(40);
+    } else if (tier === 'medium') {
+      this.particles.setMaxParticles(90);
+    } else if (tier === 'high') {
+      this.particles.setMaxParticles(180);
+    } else {
+      this.particles.setMaxParticles(300);
+    }
+  }
+
+  private renderBossHealthBar(ctx: CanvasRenderingContext2D): void {
+    if (!this.boss || !this.boss.alive) return;
+    const barW = Math.min(480, this.viewWidth * 0.55);
+    const barH = 18;
+    const x = (this.viewWidth - barW) / 2;
+    const y = 30;
+
+    ctx.save();
+    // Glassmorphic dark panel
+    ctx.fillStyle = 'rgba(10, 10, 26, 0.85)';
+    ctx.strokeStyle = 'rgba(255, 100, 255, 0.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x - 14, y - 22, barW + 28, barH + 30, 8) : ctx.fillRect(x - 14, y - 22, barW + 28, barH + 30);
+    ctx.fill();
+    ctx.stroke();
+
+    // Boss Name
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 14px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`☠  ${this.boss.name.toUpperCase()}  ☠`, this.viewWidth / 2, y - 4);
+
+    // Empty bar background
+    ctx.fillStyle = 'rgba(30, 15, 30, 0.9)';
+    ctx.fillRect(x, y, barW, barH);
+
+    // Delayed chip-away damage bar (orange/red)
+    const delayedPct = clamp(this.bossDelayedHealth / this.boss.maxHealth, 0, 1);
+    ctx.fillStyle = '#ff6b4a';
+    ctx.fillRect(x, y, barW * delayedPct, barH);
+
+    // Main health bar with gradient
+    const hpPct = clamp(this.boss.health / this.boss.maxHealth, 0, 1);
+    const hpGrad = ctx.createLinearGradient(x, y, x + barW, y);
+    hpGrad.addColorStop(0, '#c026d3');
+    hpGrad.addColorStop(0.5, '#e11d48');
+    hpGrad.addColorStop(1, '#f59e0b');
+    ctx.fillStyle = hpGrad;
+    ctx.fillRect(x, y, barW * hpPct, barH);
+
+    // Segment divider notches
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    for (let i = 1; i < 10; i++) {
+      ctx.fillRect(x + (barW * i) / 10, y, 1.5, barH);
+    }
+
+    // Top highlight gleam
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.fillRect(x, y, barW * hpPct, 3);
+
+    // Border
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, barW, barH);
+
+    ctx.restore();
+  }
+
+  private renderBossWarning(ctx: CanvasRenderingContext2D): void {
+    if (this.bossWarningTimer <= 0) return;
+    const strobe = Math.floor(performance.now() * 0.008) % 2 === 0;
+
+    ctx.save();
+    ctx.fillStyle = strobe ? 'rgba(220, 38, 38, 0.85)' : 'rgba(153, 27, 27, 0.85)';
+    ctx.fillRect(0, this.viewHeight * 0.38, this.viewWidth, 110);
+
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(0, this.viewHeight * 0.38, this.viewWidth, 110);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 32px "Courier New", monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⚠ WARNING! ⚠', this.viewWidth / 2, this.viewHeight * 0.38 + 38);
+
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 17px "Courier New", monospace';
+    ctx.fillText('A POWERFUL FOE APPROACHES...', this.viewWidth / 2, this.viewHeight * 0.38 + 78);
+
+    ctx.restore();
+  }
+
+  private renderLevelTransition(ctx: CanvasRenderingContext2D): void {
+    if (this.levelTransitionTimer <= 0 || !this.currentLevel) return;
+    const progress = this.levelTransitionTimer / 2.8;
+    let alpha = 1;
+    if (progress > 0.8) alpha = (1 - progress) / 0.2;
+    else if (progress < 0.2) alpha = progress / 0.2;
+    alpha = clamp(alpha, 0, 1);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    const theme = WORLD_THEMES[this.currentLevel.world - 1];
+    const bannerW = Math.min(560, this.viewWidth * 0.7);
+    const bannerH = 100;
+    const bx = (this.viewWidth - bannerW) / 2;
+    const by = this.viewHeight * 0.24;
+
+    ctx.fillStyle = 'rgba(10, 10, 26, 0.9)';
+    ctx.strokeStyle = theme?.accent || '#4a8aff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(bx, by, bannerW, bannerH, 14) : ctx.fillRect(bx, by, bannerW, bannerH);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = theme?.accent || '#4a8aff';
+    ctx.font = 'bold 15px "Courier New", monospace';
+    ctx.fillText(`WORLD ${this.currentWorld} — ${(theme?.name || '').toUpperCase()}`, this.viewWidth / 2, by + 26);
+
+    ctx.fillStyle = '#ffd700';
+    ctx.font = 'bold 24px "Courier New", monospace';
+    ctx.fillText((this.currentLevel.name || '').toUpperCase(), this.viewWidth / 2, by + 56);
+
+    ctx.fillStyle = '#88ccff';
+    ctx.font = '13px "Courier New", monospace';
+    ctx.fillText(`LEVEL ${this.currentWorld}-${this.currentLevelNum}`, this.viewWidth / 2, by + 82);
+
+    ctx.restore();
   }
 
   private renderMenuBackground(): void {

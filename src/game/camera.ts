@@ -27,14 +27,16 @@ export class Camera {
     this.levelHeight = height;
   }
 
-  follow(targetX: number, targetY: number, targetWidth: number, targetHeight: number): void {
-    this.targetX = targetX + targetWidth / 2 - this.width / 2;
+  follow(targetX: number, targetY: number, targetWidth: number, targetHeight: number, facing: 1 | -1 = 1, vx = 0): void {
+    // Dynamic look-ahead so player remains near center-left with wide forward view
+    const lead = facing * Math.min(100, Math.abs(vx) * 0.25 + 50);
+    this.targetX = targetX + targetWidth / 2 - this.width / 2 + lead;
     this.targetY = targetY + targetHeight / 2 - this.height / 2;
   }
 
   update(dt: number): void {
-    this.x = lerp(this.x, this.targetX, this.smoothing);
-    this.y = lerp(this.y, this.targetY, this.smoothing);
+    this.x += (this.targetX - this.x) * 0.1;
+    this.y += (this.targetY - this.y) * 0.1;
     this.x = clamp(this.x, 0, Math.max(0, this.levelWidth - this.width));
     this.y = clamp(this.y, 0, Math.max(0, this.levelHeight - this.height));
 

@@ -82,83 +82,175 @@ export class Collectible {
     if (this.collected) return;
     const px = Math.round(this.x - camX);
     const py = Math.round(this.y - camY);
-    const pulse = 1 + Math.sin(this.animTimer * 4) * 0.15;
+    const pulse = 1 + Math.sin(this.animTimer * 4) * 0.12;
+
+    ctx.save();
 
     switch (this.type) {
-      case 'coin':
-        ctx.fillStyle = '#ffd700';
+      case 'coin': {
+        // Spinning 3D gold coin effect
+        const spin = Math.cos(this.animTimer * 5);
+        const spinW = Math.max(2, Math.abs(spin) * 8 * pulse);
+        const cx = px + 8;
+        const cy = py + 8;
+
+        // Radiant golden aura
+        const aura = ctx.createRadialGradient(cx, cy, 2, cx, cy, 14);
+        aura.addColorStop(0, 'rgba(255, 230, 100, 0.45)');
+        aura.addColorStop(1, 'rgba(255, 180, 0, 0)');
+        ctx.fillStyle = aura;
         ctx.beginPath();
-        ctx.arc(px + 8, py + 8, 7 * pulse, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 14, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#ffaa00';
+
+        // Outer coin edge
+        ctx.fillStyle = '#b8860b';
         ctx.beginPath();
-        ctx.arc(px + 8, py + 8, 5 * pulse, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy, spinW + 1, 8 * pulse, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#ffff88';
+
+        // Main gold face
+        const coinGrad = ctx.createLinearGradient(cx - spinW, cy - 8, cx + spinW, cy + 8);
+        coinGrad.addColorStop(0, '#ffe066');
+        coinGrad.addColorStop(0.5, '#ffd700');
+        coinGrad.addColorStop(1, '#d49b00');
+        ctx.fillStyle = coinGrad;
         ctx.beginPath();
-        ctx.arc(px + 6, py + 6, 2, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy, spinW, 7.5 * pulse, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Inner coin star/detail if facing mostly front
+        if (Math.abs(spin) > 0.4) {
+          ctx.fillStyle = '#fff8b3';
+          ctx.beginPath();
+          ctx.ellipse(cx - spinW * 0.25, cy - 2, spinW * 0.4, 3, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+
+      case 'starShard': {
+        const cx = px + 9;
+        const cy = py + 9;
+
+        // Soft cyan aura
+        const aura = ctx.createRadialGradient(cx, cy, 2, cx, cy, 16);
+        aura.addColorStop(0, 'rgba(150, 220, 255, 0.6)');
+        aura.addColorStop(1, 'rgba(100, 180, 255, 0)');
+        ctx.fillStyle = aura;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Diamond gem
+        const r = 9 * pulse;
+        const gemGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+        gemGrad.addColorStop(0, '#e6f7ff');
+        gemGrad.addColorStop(0.4, '#80d4ff');
+        gemGrad.addColorStop(1, '#1890ff');
+
+        ctx.fillStyle = gemGrad;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - r);
+        ctx.lineTo(cx + r * 0.85, cy);
+        ctx.lineTo(cx, cy + r);
+        ctx.lineTo(cx - r * 0.85, cy);
+        ctx.closePath();
+        ctx.fill();
+
+        // Specular glint
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - r * 0.7);
+        ctx.lineTo(cx + r * 0.4, cy);
+        ctx.lineTo(cx, cy + r * 0.1);
+        ctx.lineTo(cx - r * 0.4, cy);
+        ctx.closePath();
         ctx.fill();
         break;
+      }
 
-      case 'starShard':
-        ctx.fillStyle = '#88ccff';
+      case 'secretCrystal': {
+        const cx = px + 11;
+        const cy = py + 11;
+        const r = 11 * pulse;
+
+        // Magical magenta bloom
+        const aura = ctx.createRadialGradient(cx, cy, 3, cx, cy, 20);
+        aura.addColorStop(0, 'rgba(255, 120, 255, 0.65)');
+        aura.addColorStop(1, 'rgba(200, 40, 200, 0)');
+        ctx.fillStyle = aura;
         ctx.beginPath();
-        ctx.moveTo(px + 9, py);
-        ctx.lineTo(px + 18, py + 9);
-        ctx.lineTo(px + 9, py + 18);
-        ctx.lineTo(px, py + 9);
+        ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Hexagonal crystal prism
+        const crystalGrad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+        crystalGrad.addColorStop(0, '#ffffff');
+        crystalGrad.addColorStop(0.3, '#ff77ff');
+        crystalGrad.addColorStop(0.7, '#cc22cc');
+        crystalGrad.addColorStop(1, '#660066');
+
+        ctx.fillStyle = crystalGrad;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - r);
+        ctx.lineTo(cx + r * 0.85, cy - r * 0.4);
+        ctx.lineTo(cx + r * 0.85, cy + r * 0.4);
+        ctx.lineTo(cx, cy + r);
+        ctx.lineTo(cx - r * 0.85, cy + r * 0.4);
+        ctx.lineTo(cx - r * 0.85, cy - r * 0.4);
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = '#aaddff';
+
+        // Internal facets
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.moveTo(px + 9, py + 3);
-        ctx.lineTo(px + 15, py + 9);
-        ctx.lineTo(px + 9, py + 15);
-        ctx.lineTo(px + 3, py + 9);
-        ctx.closePath();
-        ctx.fill();
+        ctx.moveTo(cx, cy - r);
+        ctx.lineTo(cx, cy + r);
+        ctx.moveTo(cx - r * 0.85, cy);
+        ctx.lineTo(cx + r * 0.85, cy);
+        ctx.stroke();
         break;
+      }
 
-      case 'secretCrystal':
-        ctx.fillStyle = '#ff44ff';
-        ctx.beginPath();
-        ctx.moveTo(px + 11, py);
-        ctx.lineTo(px + 22, py + 8);
-        ctx.lineTo(px + 18, py + 22);
-        ctx.lineTo(px + 4, py + 22);
-        ctx.lineTo(px, py + 8);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = '#ff88ff';
-        ctx.beginPath();
-        ctx.moveTo(px + 11, py + 3);
-        ctx.lineTo(px + 18, py + 10);
-        ctx.lineTo(px + 11, py + 18);
-        ctx.lineTo(px + 4, py + 10);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = '#ffaaff';
-        ctx.fillRect(px + 9, py + 6, 4, 4);
-        break;
+      case 'goldenStar': {
+        const cx = px + 12;
+        const cy = py + 12;
+        const r = 13 * pulse;
 
-      case 'goldenStar':
-        const r = 12 * pulse;
+        // Radiant star bloom
+        const aura = ctx.createRadialGradient(cx, cy, 3, cx, cy, 22);
+        aura.addColorStop(0, 'rgba(255, 240, 140, 0.8)');
+        aura.addColorStop(0.5, 'rgba(255, 200, 0, 0.3)');
+        aura.addColorStop(1, 'rgba(255, 170, 0, 0)');
+        ctx.fillStyle = aura;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 22, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Golden 5-point star
         ctx.fillStyle = '#ffd700';
         ctx.beginPath();
         for (let i = 0; i < 5; i++) {
-          const angle = (i * 4 * Math.PI) / 5 - Math.PI / 2;
-          const x = px + 12 + Math.cos(angle) * r;
-          const y = py + 12 + Math.sin(angle) * r;
+          const a = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+          const x = cx + Math.cos(a) * r;
+          const y = cy + Math.sin(a) * r;
           if (i === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         ctx.closePath();
         ctx.fill();
-        ctx.fillStyle = '#ffff00';
+
+        // Center shiny core
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.arc(px + 12, py + 12, 4, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 4, 0, Math.PI * 2);
         ctx.fill();
         break;
+      }
     }
+
+    ctx.restore();
   }
 }

@@ -67,7 +67,7 @@ export const TILE_TYPES: Record<string, {
   damaging: boolean;
   breakable: boolean;
   oneWay: boolean;
-  colors: string[];
+  colors: readonly string[] | string[];
 }> = {
   grass: { solid: true, slippery: false, damaging: false, breakable: false, oneWay: false, colors: COLORS.ground },
   dirt: { solid: true, slippery: false, damaging: false, breakable: false, oneWay: false, colors: COLORS.dirt },
@@ -83,10 +83,16 @@ export const TILE_TYPES: Record<string, {
   spike: { solid: false, slippery: false, damaging: true, breakable: false, oneWay: false, colors: ['#cccccc', '#aaaaaa', '#888888'] },
 };
 
-export const DIFFICULTY = {
+export const DIFFICULTY: Record<string, {
+  enemySpeedMult: number;
+  enemyDamageMult: number;
+  timeMult: number;
+  playerHealth: number;
+  hazardMult: number;
+}> = {
   easy: { enemySpeedMult: 0.8, enemyDamageMult: 0.5, timeMult: 1.3, playerHealth: 5, hazardMult: 0.7 },
   normal: { enemySpeedMult: 1.0, enemyDamageMult: 1.0, timeMult: 1.0, playerHealth: 3, hazardMult: 1.0 },
   hard: { enemySpeedMult: 1.3, enemyDamageMult: 1.5, timeMult: 0.8, playerHealth: 2, hazardMult: 1.3 },
-} as const;
+};
 
-export type DifficultyKey = keyof typeof DIFFICULTY;
+export type DifficultyKey = 'easy' | 'normal' | 'hard';

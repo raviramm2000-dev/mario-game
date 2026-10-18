@@ -19,10 +19,10 @@ export class Physics {
     entity: { vx: number; onGround: boolean },
     dir: number,
     dt: number,
-    speed = GAME_CONFIG.playerSpeed,
-    accel = GAME_CONFIG.playerAcceleration,
-    friction = GAME_CONFIG.playerFriction,
-    airControl = GAME_CONFIG.airControl
+    speed: number = GAME_CONFIG.playerSpeed,
+    accel: number = GAME_CONFIG.playerAcceleration,
+    friction: number = GAME_CONFIG.playerFriction,
+    airControl: number = GAME_CONFIG.airControl
   ): void {
     if (dir !== 0) {
       const a = entity.onGround ? accel : accel * airControl;
@@ -41,7 +41,7 @@ export class Physics {
     }
   }
 
-  jump(entity: { vy: number; onGround: boolean }, force = GAME_CONFIG.jumpForce): boolean {
+  jump(entity: { vy: number; onGround: boolean }, force: number = GAME_CONFIG.jumpForce): boolean {
     if (entity.onGround) {
       entity.vy = -force;
       entity.onGround = false;

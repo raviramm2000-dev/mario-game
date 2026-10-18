@@ -122,6 +122,41 @@ export interface SaveData {
   leaderboard: LeaderboardEntry[];
 }
 
+export interface HudData {
+  score: number;
+  coins: number;
+  lives: number;
+  health: number;
+  world: string;
+  time: number;
+  crystals: number;
+  starPower: boolean;
+  fireOrb: boolean;
+  shield: boolean;
+}
+
+export interface LevelCompleteData {
+  score: number;
+  coins: number;
+  enemies: number;
+  crystals: number;
+  timeBonus: number;
+  totalScore: number;
+  stars: number;
+  world: number;
+  level: number;
+}
+
+export interface VictoryData {
+  finalScore: number;
+  totalCoins: number;
+  totalCrystals: number;
+  levelsCompleted: number;
+  timePlayed: string;
+}
+
+export type GraphicsQuality = 'auto' | 'low' | 'medium' | 'high' | 'ultra';
+
 export interface GameSettings {
   masterVolume: number;
   musicVolume: number;
@@ -130,6 +165,7 @@ export interface GameSettings {
   particles: boolean;
   difficulty: DifficultyKey;
   controlLayout: 'default' | 'lefty';
+  graphicsQuality?: GraphicsQuality;
 }
 
 export type DifficultyKey = 'easy' | 'normal' | 'hard';

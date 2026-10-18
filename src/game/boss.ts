@@ -396,90 +396,216 @@ export class Boss {
   private drawRockGolem(ctx: CanvasRenderingContext2D): void {
     const w = this.width;
     const h = this.height;
-    ctx.fillStyle = '#6a5a4a';
+
+    // Rock granite body with chiseled depth
+    const rockGrad = ctx.createLinearGradient(-w / 2, -h, w / 2, 0);
+    rockGrad.addColorStop(0, '#756858');
+    rockGrad.addColorStop(0.5, '#5c5042');
+    rockGrad.addColorStop(1, '#3b3228');
+    ctx.fillStyle = rockGrad;
     ctx.fillRect(-w / 2, -h, w, h);
-    ctx.fillStyle = '#8a7a6a';
-    ctx.fillRect(-w / 2 + 4, -h + 4, w - 8, h - 8);
-    ctx.fillStyle = '#5a4a3a';
-    ctx.fillRect(-w / 2, -h + 20, w, 4);
+
+    // Granite plate bevel highlights
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.fillRect(-w / 2, -h, w, 4);
+    ctx.fillRect(-w / 2, -h, 4, h);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.fillRect(w / 2 - 4, -h, 4, h);
+    ctx.fillRect(-w / 2, -4, w, 4);
+
+    // Magma vein cracks
+    ctx.strokeStyle = '#ff6600';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-w / 4, -h + 24);
+    ctx.lineTo(-w / 8, -h + 45);
+    ctx.lineTo(-w / 4, -h + 65);
+    ctx.moveTo(w / 4, -h + 30);
+    ctx.lineTo(w / 8, -h + 55);
+    ctx.stroke();
+
+    // Runic Glyphs across stone chest
+    const runeGlow = 0.5 + Math.sin(this.animTimer * 4) * 0.5;
+    ctx.strokeStyle = `rgba(255, 100, 255, ${0.4 + runeGlow * 0.6})`;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(-w / 4, -h + 40, w / 2, 24);
+
+    // Massive Stone Fists
+    ctx.fillStyle = '#4a3a2a';
+    ctx.fillRect(-w / 2 - 12, -h + 35, 14, 42);
+    ctx.fillRect(w / 2 - 2, -h + 35, 14, 42);
+    ctx.fillStyle = '#ff6600'; // magma knuckles
+    ctx.fillRect(-w / 2 - 10, -h + 70, 10, 4);
+    ctx.fillRect(w / 2, -h + 70, 10, 4);
+
+    // Weak Point Core / Eye
     if (this.weakPointExposed) {
-      const pulse = Math.sin(this.animTimer * 15) * 3;
-      ctx.fillStyle = '#ff44ff';
+      const pulse = Math.sin(this.animTimer * 14) * 4;
+      const coreAura = ctx.createRadialGradient(0, -h + 24, 2, 0, -h + 24, 24 + pulse);
+      coreAura.addColorStop(0, '#ffffff');
+      coreAura.addColorStop(0.3, '#ff44ff');
+      coreAura.addColorStop(0.8, 'rgba(180, 0, 255, 0.4)');
+      coreAura.addColorStop(1, 'rgba(180, 0, 255, 0)');
+      ctx.fillStyle = coreAura;
       ctx.beginPath();
-      ctx.arc(0, -h + 22, 12 + pulse, 0, Math.PI * 2);
+      ctx.arc(0, -h + 24, 24 + pulse, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#ffaaff';
+
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(0, -h + 22, 6, 0, Math.PI * 2);
+      ctx.arc(0, -h + 24, 7, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      ctx.fillStyle = '#3a2a1a';
-      ctx.fillRect(-10, -h + 18, 8, 6);
-      ctx.fillRect(4, -h + 18, 8, 6);
+      // Menacing glowing molten eyes
+      ctx.fillStyle = '#ff3300';
+      ctx.fillRect(-14, -h + 20, 8, 5);
+      ctx.fillRect(6, -h + 20, 8, 5);
+      ctx.fillStyle = '#ffff00';
+      ctx.fillRect(-12, -h + 21, 4, 3);
+      ctx.fillRect(8, -h + 21, 4, 3);
     }
-    ctx.fillStyle = '#5a4a3a';
-    ctx.fillRect(-w / 2, -10, w, 10);
-    ctx.fillStyle = '#4a3a2a';
-    ctx.fillRect(-w / 2 - 8, -h + 30, 8, 30);
-    ctx.fillRect(w / 2, -h + 30, 8, 30);
   }
 
   private drawSkyDragon(ctx: CanvasRenderingContext2D): void {
     const w = this.width;
     const h = this.height;
-    const flap = Math.sin(this.animTimer * 8) * 8;
-    ctx.fillStyle = '#4488cc';
-    ctx.fillRect(-w / 2, -h + 10, w, h - 10);
-    ctx.fillStyle = '#66aadd';
-    ctx.fillRect(-w / 2 + 4, -h + 14, w - 8, h - 14);
-    ctx.fillStyle = '#3377bb';
-    ctx.fillRect(-w / 2 - 20, -h + 20 + flap, 20, 8);
-    ctx.fillRect(w / 2, -h + 20 - flap, 20, 8);
-    ctx.fillStyle = '#2266aa';
-    ctx.fillRect(w / 2 - 20, -h + 6, 24, 14);
-    if (this.weakPointExposed || true) {
-      const pulse = Math.sin(this.animTimer * 10) * 2;
-      ctx.fillStyle = '#44ff88';
+    const flap = Math.sin(this.animTimer * 8) * 12;
+
+    // Draconic body gradient
+    const dragonGrad = ctx.createLinearGradient(-w / 2, -h, w / 2, 0);
+    dragonGrad.addColorStop(0, '#2b78c9');
+    dragonGrad.addColorStop(0.5, '#1e5494');
+    dragonGrad.addColorStop(1, '#0e2b52');
+    ctx.fillStyle = dragonGrad;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(-w / 2, -h + 10, w, h - 10, 16) : ctx.fillRect(-w / 2, -h + 10, w, h - 10);
+    ctx.fill();
+
+    // Dragon Underbelly Scales
+    ctx.fillStyle = '#7ac5f8';
+    for (let i = 0; i < 4; i++) {
       ctx.beginPath();
-      ctx.arc(w / 2 - 8, -h + 14, 6 + pulse, 0, Math.PI * 2);
+      ctx.arc(-w / 4 + i * (w / 5), -8, 8, 0, Math.PI, true);
       ctx.fill();
     }
-    ctx.fillStyle = '#ff4444';
-    ctx.fillRect(w / 2 - 16, -h + 10, 4, 4);
-    ctx.fillStyle = '#ffaa00';
-    ctx.fillRect(w / 2, -h + 16, 6, 4);
+
+    // Majestic Dragon Wings
+    ctx.fillStyle = 'rgba(77, 166, 255, 0.85)';
+    ctx.beginPath();
+    ctx.moveTo(-w / 2 + 10, -h + 20);
+    ctx.lineTo(-w / 2 - 32, -h - 10 + flap);
+    ctx.lineTo(-w / 2 - 12, -h + 15 + flap * 0.5);
+    ctx.lineTo(-w / 2 - 28, -h + 5 + flap);
+    ctx.lineTo(-w / 2 + 5, -h + 35);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 10, -h + 20);
+    ctx.lineTo(w / 2 + 32, -h - 10 - flap);
+    ctx.lineTo(w / 2 + 12, -h + 15 - flap * 0.5);
+    ctx.lineTo(w / 2 + 28, -h + 5 - flap);
+    ctx.lineTo(w / 2 - 5, -h + 35);
+    ctx.closePath();
+    ctx.fill();
+
+    // Dragon Head & Horns
+    ctx.fillStyle = '#103d75';
+    ctx.fillRect(w / 2 - 18, -h + 2, 28, 18);
+    // Golden Horns
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 4, -h + 2);
+    ctx.lineTo(w / 2 - 12, -h - 14);
+    ctx.lineTo(w / 2, -h);
+    ctx.closePath();
+    ctx.fill();
+
+    // Glowing Dragon Eye
+    ctx.fillStyle = '#ff2200';
+    ctx.fillRect(w / 2 - 6, -h + 6, 6, 4);
+    ctx.fillStyle = '#ffff00';
+    ctx.fillRect(w / 2 - 4, -h + 7, 3, 2);
+
+    // Glowing core weak point
+    if (this.weakPointExposed) {
+      const pulse = Math.sin(this.animTimer * 12) * 3;
+      const coreAura = ctx.createRadialGradient(w / 2 - 6, -h + 12, 1, w / 2 - 6, -h + 12, 16 + pulse);
+      coreAura.addColorStop(0, '#ffffff');
+      coreAura.addColorStop(0.4, '#44ffaa');
+      coreAura.addColorStop(1, 'rgba(0, 255, 120, 0)');
+      ctx.fillStyle = coreAura;
+      ctx.beginPath();
+      ctx.arc(w / 2 - 6, -h + 12, 16 + pulse, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   private drawVoidKing(ctx: CanvasRenderingContext2D): void {
     const w = this.width;
     const h = this.height;
-    const aura = Math.sin(this.animTimer * 5) * 3;
-    ctx.fillStyle = 'rgba(153,51,255,0.3)';
+    const aura = Math.sin(this.animTimer * 5) * 6;
+
+    // Cosmic Void Vortex Aura
+    const voidAura = ctx.createRadialGradient(0, -h / 2, w * 0.3, 0, -h / 2, w * 1.2 + aura);
+    voidAura.addColorStop(0, 'rgba(140, 40, 255, 0.45)');
+    voidAura.addColorStop(0.6, 'rgba(60, 10, 120, 0.25)');
+    voidAura.addColorStop(1, 'rgba(20, 0, 40, 0)');
+    ctx.fillStyle = voidAura;
     ctx.beginPath();
-    ctx.arc(0, -h / 2, w + aura, 0, Math.PI * 2);
+    ctx.arc(0, -h / 2, w * 1.2 + aura, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#2a0a3a';
+
+    // Dark Regal Cloak
+    const cloakGrad = ctx.createLinearGradient(-w / 2, -h, w / 2, 0);
+    cloakGrad.addColorStop(0, '#1c0529');
+    cloakGrad.addColorStop(0.5, '#2e0b42');
+    cloakGrad.addColorStop(1, '#0f0217');
+    ctx.fillStyle = cloakGrad;
     ctx.fillRect(-w / 2, -h, w, h);
-    ctx.fillStyle = '#4a1a5a';
-    ctx.fillRect(-w / 2 + 4, -h + 4, w - 8, h - 8);
-    ctx.fillStyle = '#1a0a2a';
-    ctx.fillRect(-w / 2 + 8, -h + 10, w - 16, 8);
-    ctx.fillStyle = '#ff3333';
-    ctx.fillRect(-8, -h + 12, 5, 4);
-    ctx.fillRect(4, -h + 12, 5, 4);
-    ctx.fillStyle = '#9933ff';
-    ctx.fillRect(-w / 2 + 4, -h, 4, 8);
-    ctx.fillRect(w / 2 - 8, -h, 4, 8);
-    ctx.fillRect(-2, -h - 6, 4, 8);
-    ctx.fillStyle = '#6600cc';
-    ctx.fillRect(-w / 2, -8, w, 8);
-    if (this.phase >= 3) {
-      ctx.fillStyle = '#ff00ff';
-      ctx.globalAlpha = 0.5;
-      ctx.beginPath();
-      ctx.arc(0, -h / 2, w * 0.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+
+    // Crimson Cloak Lining
+    ctx.fillStyle = '#8b004b';
+    ctx.fillRect(-w / 2 + 4, -h + 8, 4, h - 16);
+    ctx.fillRect(w / 2 - 8, -h + 8, 4, h - 16);
+
+    // Crown of the Void
+    ctx.fillStyle = '#7c2d12';
+    ctx.fillRect(-w / 4, -h - 8, w / 2, 8);
+    // Crown spires
+    ctx.fillStyle = '#c026d3';
+    ctx.beginPath();
+    ctx.moveTo(-w / 4, -h - 8);
+    ctx.lineTo(-w / 4 + 4, -h - 18);
+    ctx.lineTo(-w / 4 + 8, -h - 8);
+    ctx.lineTo(0, -h - 22);
+    ctx.lineTo(w / 4 - 8, -h - 8);
+    ctx.lineTo(w / 4 - 4, -h - 18);
+    ctx.lineTo(w / 4, -h - 8);
+    ctx.closePath();
+    ctx.fill();
+
+    // Dark Visage & Piercing Eyes
+    ctx.fillStyle = '#05020a';
+    ctx.fillRect(-w / 3, -h + 10, (w * 2) / 3, 20);
+
+    // Piercing Glowing Eyes
+    ctx.fillStyle = '#f43f5e';
+    ctx.fillRect(-12, -h + 16, 7, 5);
+    ctx.fillRect(5, -h + 16, 7, 5);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-10, -h + 17, 3, 3);
+    ctx.fillRect(7, -h + 17, 3, 3);
+
+    // Floating Cosmic Void Shards (orbiting particles)
+    for (let i = 0; i < 4; i++) {
+      const a = this.animTimer * 2 + i * (Math.PI / 2);
+      const sx = Math.cos(a) * (w * 0.7);
+      const sy = -h / 2 + Math.sin(a) * (h * 0.35);
+      ctx.fillStyle = '#a855f7';
+      ctx.fillRect(sx - 3, sy - 3, 6, 6);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(sx - 1, sy - 1, 2, 2);
     }
   }
 }
